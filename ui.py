@@ -47,4 +47,4 @@ if file1 and file2:
 
     st.subheader(f"🧠 Pixel Similarity Score: `{score:.4f}`")
     st.image([img1, img2], caption=["Base Image", "Comparison Image"], width=300)
-    st.image(diff_image, caption="🟥 Highlighted Pixel Differences", use_column_width=True)
+    st.image(diff_image, caption="🟥 Highlighted Pixel Differences", use_container_width=True)
