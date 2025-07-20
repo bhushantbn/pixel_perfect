@@ -1,5 +1,4 @@
-opencv-python
-scikit-image
-numpy
 streamlit
-playwright
+Pillow
+numpy
+scikit-image
