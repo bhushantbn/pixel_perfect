@@ -1,35 +1,37 @@
 import streamlit as st
 from PIL import Image
 import numpy as np
-from skimage.metrics import structural_similarity as ssim
 
 st.set_page_config(page_title="Pixel Perfect Comparison", layout="wide")
 st.title("🎯 Sharp Pixel Difference Highlighter")
 
 def highlight_differences(img1, img2):
-    # Resize second image to match first
+    # Resize second image to match the first
     if img1.size != img2.size:
-        st.warning(f"Resizing comparison image from {img2.size} to {img1.size}")
+        st.warning(f"Resizing comparison image from {img2.size} to match {img1.size}")
         img2 = img2.resize(img1.size)
 
-    # Convert to grayscale for SSIM comparison
-    gray1 = np.array(img1.convert("L"))
-    gray2 = np.array(img2.convert("L"))
+    # Convert images to RGB arrays
+    arr1 = np.array(img1.convert("RGB"))
+    arr2 = np.array(img2.convert("RGB"))
 
-    # Calculate SSIM and diff map
-    score, diff = ssim(gray1, gray2, full=True)
-    diff = (1 - diff) > 0.02  # Boolean mask of different pixels (thresholded)
+    # Boolean mask: where any of the RGB channels differ
+    diff_mask = np.any(arr1 != arr2, axis=-1)
 
-    # Convert original to array for manipulation
-    base_array = np.array(img1.convert("RGB")).copy()
+    # Create a copy of the base image to highlight
+    highlighted = arr1.copy()
 
     # Mark differing pixels in RED
-    base_array[diff] = [255, 0, 0]  # Red highlight
+    highlighted[diff_mask] = [255, 0, 0]
 
-    highlighted_image = Image.fromarray(base_array)
-    return score, highlighted_image
+    # Calculate similarity score (based on unchanged pixels)
+    total_pixels = diff_mask.size
+    changed_pixels = np.count_nonzero(diff_mask)
+    similarity_score = 1 - (changed_pixels / total_pixels)
 
-# Upload interface
+    return similarity_score, Image.fromarray(highlighted)
+
+# Upload section
 col1, col2 = st.columns(2)
 with col1:
     file1 = st.file_uploader("Upload Base Image", type=["png", "jpg", "jpeg"])
@@ -43,6 +45,6 @@ if file1 and file2:
 
     score, diff_image = highlight_differences(img1, img2)
 
-    st.subheader(f"🧠 SSIM Similarity Score: `{score:.4f}`")
+    st.subheader(f"🧠 Pixel Similarity Score: `{score:.4f}`")
     st.image([img1, img2], caption=["Base Image", "Comparison Image"], width=300)
     st.image(diff_image, caption="🟥 Highlighted Pixel Differences", use_column_width=True)
