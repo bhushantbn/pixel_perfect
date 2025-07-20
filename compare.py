@@ -1,29 +1,42 @@
-import cv2
-from skimage.metrics import structural_similarity as ssim
+import streamlit as st
+from PIL import Image
 import numpy as np
-import os
+from skimage.metrics import structural_similarity as ssim
 
-def compare_images(imageA_path, imageB_path, output_path='output/diffs/diff.png'):
-    imageA = cv2.imread(imageA_path)
-    imageB = cv2.imread(imageB_path)
+st.set_page_config(page_title="Pixel Perfect Comparison", layout="wide")
+st.title("🧪 Pixel-Perfect Image Comparison Tool")
 
-    if imageA.shape != imageB.shape:
-        raise ValueError("Images must have the same dimensions")
+def compare_images(img1, img2):
+    # Resize second image to match first image if needed
+    if img1.size != img2.size:
+        st.warning(f"Resized comparison image from {img2.size} to match base image size {img1.size}")
+        img2 = img2.resize(img1.size)
 
-    grayA = cv2.cvtColor(imageA, cv2.COLOR_BGR2GRAY)
-    grayB = cv2.cvtColor(imageB, cv2.COLOR_BGR2GRAY)
+    # Convert to grayscale
+    gray1 = np.array(img1.convert("L"))
+    gray2 = np.array(img2.convert("L"))
 
-    (score, diff) = ssim(grayA, grayB, full=True)
-    diff = (diff * 255).astype("uint8")
+    # Calculate SSIM and difference map
+    score, diff = ssim(gray1, gray2, full=True)
+    diff_img = Image.fromarray((1 - diff) * 255).convert("L")
+    return score, diff_img
 
-    thresh = cv2.threshold(diff, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
-    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+# UI layout for file uploads
+col1, col2 = st.columns(2)
+with col1:
+    file1 = st.file_uploader("Upload Base Image", type=["png", "jpg", "jpeg"])
+with col2:
+    file2 = st.file_uploader("Upload Comparison Image", type=["png", "jpg", "jpeg"])
 
-    for c in contours:
-        (x, y, w, h) = cv2.boundingRect(c)
-        cv2.rectangle(imageB, (x, y), (x + w, y + h), (0, 0, 255), 2)
+# When both images are uploaded
+if file1 and file2:
+    img1 = Image.open(file1).convert("RGB")
+    img2 = Image.open(file2).convert("RGB")
 
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    cv2.imwrite(output_path, imageB)
+    # Perform comparison
+    score, diff_image = compare_images(img1, img2)
 
-    return score, output_path
+    # Display results
+    st.subheader(f"🧠 SSIM Score: `{score:.4f}`")
+    st.image([img1, img2], caption=["Base Image", "Comparison Image"], width=300)
+    st.image(diff_image, caption="🔍 Difference Image (highlighted)", use_column_width=True)
